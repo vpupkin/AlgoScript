@@ -20,8 +20,9 @@ class AlgoScriptLexer:
             (r'\bSTOP_LOSS\b', TokenType.STOP_LOSS),
             (r'\bTAKE_PROFIT\b', TokenType.TAKE_PROFIT),
             (r'\bENTRY_PRICE\b', TokenType.ENTRY_PRICE),
-            (r'\bLESS\s+THAN\b', TokenType.LESS_THAN),
-            (r'\bGREATER\s+THAN\b', TokenType.GREATER_THAN),
+            # Single-word operators
+            (r'\bLESS_THAN\b', TokenType.LESS_THAN),
+            (r'\bGREATER_THAN\b', TokenType.GREATER_THAN),
             
             # Numbers and percentages (before keywords)
             (r'\d+\.?\d*%', TokenType.PERCENTAGE),
