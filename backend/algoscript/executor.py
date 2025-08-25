@@ -101,7 +101,10 @@ class AlgoScriptExecutor:
         
         # Execute actions
         for action in handler.actions:
-            self._execute_action(action)
+            if self.use_real_exchange:
+                asyncio.run(self._execute_real_action(action))
+            else:
+                self._execute_action(action)
     
     def _evaluate_condition(self, condition: Condition) -> bool:
         """Evaluate a trading condition"""
