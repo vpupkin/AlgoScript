@@ -75,6 +75,14 @@ class AlgoScriptExecutor:
             logger.error(error_msg, exc_info=True)
             return self._create_result(False, error_msg)
     
+    async def _get_current_price(self) -> float:
+        """Get current price from real exchange or mock data"""
+        if self.use_real_exchange and self.exchange_manager:
+            market_data = await self.exchange_manager.get_market_data(self.ast.symbol)
+            return float(market_data.price) if market_data else 0.0
+        else:
+            return self.market_data.get_current_price()
+    
     def _execute_event_handler(self, handler: EventHandler):
         """Execute a specific event handler"""
         self.log(f"\n--- Processing {handler.event_type} handler ---")
