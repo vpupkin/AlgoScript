@@ -523,7 +523,11 @@ class AlgoScriptExecutor:
     def check_stop_loss_take_profit(self) -> List[str]:
         """Check if stop loss or take profit should be triggered"""
         triggered_actions = []
-        current_price = self.market_data.get_current_price()
+        
+        if self.use_real_exchange:
+            current_price = asyncio.run(self._get_current_price())
+        else:
+            current_price = self.market_data.get_current_price()
         
         if self.trading_state.position_size > 0:
             # Check stop loss
@@ -531,11 +535,18 @@ class AlgoScriptExecutor:
                 current_price <= self.trading_state.stop_loss):
                 
                 self.log(f"STOP LOSS TRIGGERED at ${current_price:.2f}")
-                self._execute_sell_action({
-                    'amount_percentage': 100,
-                    'amount_type': 'POSITION',
-                    'order_type': 'MARKET_ORDER'
-                })
+                if self.use_real_exchange:
+                    asyncio.run(self._execute_real_sell_action({
+                        'amount_percentage': 100,
+                        'amount_type': 'POSITION',
+                        'order_type': 'MARKET_ORDER'
+                    }))
+                else:
+                    self._execute_sell_action({
+                        'amount_percentage': 100,
+                        'amount_type': 'POSITION',
+                        'order_type': 'MARKET_ORDER'
+                    })
                 triggered_actions.append("STOP_LOSS")
             
             # Check take profit
@@ -543,11 +554,18 @@ class AlgoScriptExecutor:
                   current_price >= self.trading_state.take_profit):
                 
                 self.log(f"TAKE PROFIT TRIGGERED at ${current_price:.2f}")
-                self._execute_sell_action({
-                    'amount_percentage': 100,
-                    'amount_type': 'POSITION',
-                    'order_type': 'MARKET_ORDER'
-                })
+                if self.use_real_exchange:
+                    asyncio.run(self._execute_real_sell_action({
+                        'amount_percentage': 100,
+                        'amount_type': 'POSITION',
+                        'order_type': 'MARKET_ORDER'
+                    }))
+                else:
+                    self._execute_sell_action({
+                        'amount_percentage': 100,
+                        'amount_type': 'POSITION',
+                        'order_type': 'MARKET_ORDER'
+                    })
                 triggered_actions.append("TAKE_PROFIT")
         
         return triggered_actions
