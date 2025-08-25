@@ -41,7 +41,11 @@ class AlgoScriptExecutor:
             self.log(f"=== AlgoScript Execution Started ===")
             self.log(f"Symbol: {self.ast.symbol}, Timeframe: {self.ast.timeframe}")
             self.log(f"Event: {event_type}")
-            self.log(f"Current Price: ${self.market_data.get_current_price():.2f}")
+            self.log(f"Mode: {'LIVE TRADING' if self.use_real_exchange else 'SIMULATION'}")
+            
+            # Get current price (real or mock)
+            current_price = asyncio.run(self._get_current_price()) if self.use_real_exchange else self.market_data.get_current_price()
+            self.log(f"Current Price: ${current_price:.2f}")
             self.log(f"Balance: ${self.trading_state.balance:.2f}")
             
             if self.trading_state.position_size > 0:
