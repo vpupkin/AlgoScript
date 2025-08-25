@@ -364,7 +364,7 @@ class AlgoScriptExecutor:
         return False
     
     def _execute_action(self, action: Action):
-        """Execute a trading action"""
+        """Execute a trading action (simulation mode)"""
         action_type = action.type
         params = action.parameters
         
