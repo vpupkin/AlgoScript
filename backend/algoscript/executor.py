@@ -15,15 +15,18 @@ logger = logging.getLogger(__name__)
 class AlgoScriptExecutor:
     """
     Executes AlgoScript AST and manages trading state.
+    Can work with both mock data and real exchanges.
     """
     
-    def __init__(self, ast: AlgoScriptAST, initial_balance: float = 10000.0):
+    def __init__(self, ast: AlgoScriptAST, initial_balance: float = 10000.0, use_real_exchange: bool = False):
         self.ast = ast
         self.trading_state = TradingState(
             symbol=ast.symbol,
             balance=initial_balance
         )
-        self.market_data = get_market_data(ast.symbol)
+        self.use_real_exchange = use_real_exchange
+        self.exchange_manager = get_exchange_manager() if use_real_exchange else None
+        self.market_data = get_market_data(ast.symbol)  # Keep for mock data and indicators
         self.execution_logs = []
         self.executed_actions = []
     
