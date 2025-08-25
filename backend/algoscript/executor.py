@@ -382,7 +382,7 @@ class AlgoScriptExecutor:
         self.executed_actions.append(f"{action_type}: {params}")
     
     def _execute_buy_action(self, params: Dict[str, Any]):
-        """Execute BUY action"""
+        """Execute BUY action (simulation mode)"""
         current_price = self.market_data.get_current_price()
         
         # Calculate amount to buy
