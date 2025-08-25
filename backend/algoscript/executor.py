@@ -1,11 +1,14 @@
 from typing import Dict, Any, List, Optional
 import logging
+import asyncio
+import decimal
 from datetime import datetime
 from .models import (
     AlgoScriptAST, EventHandler, Condition, Action, 
     TradingState, ExecutionResult, IndicatorCall
 )
 from .market_data import get_market_data, MockMarketData
+from exchange.exchange_manager import get_exchange_manager
 
 logger = logging.getLogger(__name__)
 
