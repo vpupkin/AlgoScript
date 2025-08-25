@@ -57,6 +57,7 @@ class TokenType(Enum):
     NEGATIVE = "NEGATIVE"
     LESS_THAN = "LESS_THAN"
     GREATER_THAN = "GREATER_THAN"
+    EQUALS = "EQUALS"
     AT = "AT"
     OF = "OF"
     WITH = "WITH"
