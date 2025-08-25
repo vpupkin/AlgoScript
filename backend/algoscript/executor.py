@@ -293,7 +293,10 @@ class AlgoScriptExecutor:
         
         if isinstance(value, str):
             if value == "PRICE":
-                return self.market_data.get_current_price()
+                if self.use_real_exchange:
+                    return asyncio.run(self._get_current_price())
+                else:
+                    return self.market_data.get_current_price()
             elif value == "ENTRY_PRICE":
                 return self.trading_state.entry_price or 0.0
             elif value == "BALANCE":
