@@ -573,11 +573,13 @@ class AlgoScriptExecutor:
     def simulate_event(self, event_type: str) -> ExecutionResult:
         """Simulate a specific market event"""
         if event_type == "NEW_CANDLE":
-            self.market_data.generate_new_candle()
+            if not self.use_real_exchange:
+                self.market_data.generate_new_candle()
         elif event_type == "PRICE_CHANGE":
-            # Simulate small price change
-            change = (-1 if self.market_data.get_current_price() > 2000 else 1) * 0.5
-            self.market_data.simulate_price_change(change)
+            if not self.use_real_exchange:
+                # Simulate small price change
+                change = (-1 if self.market_data.get_current_price() > 2000 else 1) * 0.5
+                self.market_data.simulate_price_change(change)
         elif event_type == "ORDER_FILLED":
             # This would be triggered after a buy/sell order
             pass
