@@ -106,6 +106,168 @@ class AlgoScriptExecutor:
             else:
                 self._execute_action(action)
     
+    async def _execute_real_action(self, action: Action):
+        """Execute a trading action on real exchange"""
+        action_type = action.type
+        params = action.parameters
+        
+        self.log(f"\nExecuting REAL action: {action_type}")
+        
+        try:
+            if action_type == "BUY":
+                await self._execute_real_buy_action(params)
+            elif action_type == "SELL":
+                await self._execute_real_sell_action(params)
+            elif action_type == "SET":
+                self._execute_set_action(params)  # Same logic for both real and mock
+            elif action_type == "LOG":
+                self._execute_log_action(params)  # Same logic for both real and mock
+            
+            self.executed_actions.append(f"REAL {action_type}: {params}")
+            
+        except Exception as e:
+            self.log(f"Error executing real action {action_type}: {str(e)}")
+    
+    async def _execute_real_buy_action(self, params: Dict[str, Any]):
+        """Execute BUY action on real exchange"""
+        if not self.exchange_manager:
+            self.log("No exchange manager available for real trading")
+            return
+        
+        current_price = await self._get_current_price()
+        
+        # Calculate amount to buy
+        if 'amount_percentage' in params and params.get('amount_type') == 'BALANCE':
+            percentage = params['amount_percentage'] / 100.0
+            dollar_amount = self.trading_state.balance * percentage
+            quantity = dollar_amount / current_price
+        elif 'amount' in params:
+            quantity = params['amount']
+            dollar_amount = quantity * current_price
+        else:
+            self.log("Invalid BUY parameters")
+            return
+        
+        if dollar_amount > self.trading_state.balance:
+            self.log(f"Insufficient balance. Required: ${dollar_amount:.2f}, Available: ${self.trading_state.balance:.2f}")
+            return
+        
+        order_type = params.get('order_type', 'MARKET_ORDER')
+        
+        try:
+            if order_type == "LIMIT_ORDER":
+                # For limit orders, use specified price or calculate from current price
+                limit_price = current_price  # Simplified - could be enhanced with better price calculation
+                order_response = await self.exchange_manager.place_limit_order(
+                    self.ast.symbol, "BUY", decimal.Decimal(str(quantity)), decimal.Decimal(str(limit_price))
+                )
+            else:
+                # Market order
+                order_response = await self.exchange_manager.place_market_order(
+                    self.ast.symbol, "BUY", decimal.Decimal(str(quantity))
+                )
+            
+            if order_response:
+                self.log(f"REAL BUY ORDER PLACED: {quantity:.4f} {self.ast.symbol}")
+                self.log(f"Order ID: {order_response.order_id}")
+                self.log(f"Price: ${float(order_response.price):.2f}")
+                
+                # Update trading state (optimistic update)
+                self.trading_state.position_size += quantity
+                self.trading_state.entry_price = float(order_response.price)
+                self.trading_state.balance -= dollar_amount
+                
+                # Record order
+                order = {
+                    "type": "BUY",
+                    "order_type": order_type,
+                    "quantity": quantity,
+                    "price": float(order_response.price),
+                    "timestamp": datetime.utcnow(),
+                    "status": order_response.status,
+                    "order_id": order_response.order_id
+                }
+                self.trading_state.orders.append(order)
+                
+            else:
+                self.log("Failed to place BUY order on exchange")
+                
+        except Exception as e:
+            self.log(f"Error placing real BUY order: {str(e)}")
+    
+    async def _execute_real_sell_action(self, params: Dict[str, Any]):
+        """Execute SELL action on real exchange"""
+        if not self.exchange_manager:
+            self.log("No exchange manager available for real trading")
+            return
+        
+        if self.trading_state.position_size <= 0:
+            self.log("No position to sell")
+            return
+        
+        current_price = await self._get_current_price()
+        
+        # Calculate amount to sell
+        if 'amount_percentage' in params and params.get('amount_type') == 'POSITION':
+            percentage = params['amount_percentage'] / 100.0
+            quantity = self.trading_state.position_size * percentage
+        elif 'amount' in params:
+            quantity = min(params['amount'], self.trading_state.position_size)
+        else:
+            quantity = self.trading_state.position_size
+        
+        order_type = params.get('order_type', 'MARKET_ORDER')
+        
+        try:
+            if order_type == "LIMIT_ORDER":
+                limit_price = current_price
+                order_response = await self.exchange_manager.place_limit_order(
+                    self.ast.symbol, "SELL", decimal.Decimal(str(quantity)), decimal.Decimal(str(limit_price))
+                )
+            else:
+                # Market order
+                order_response = await self.exchange_manager.place_market_order(
+                    self.ast.symbol, "SELL", decimal.Decimal(str(quantity))
+                )
+            
+            if order_response:
+                self.log(f"REAL SELL ORDER PLACED: {quantity:.4f} {self.ast.symbol}")
+                self.log(f"Order ID: {order_response.order_id}")
+                self.log(f"Price: ${float(order_response.price):.2f}")
+                
+                # Calculate P&L
+                if self.trading_state.entry_price:
+                    pnl = (float(order_response.price) - self.trading_state.entry_price) * quantity
+                    pnl_percentage = ((float(order_response.price) / self.trading_state.entry_price) - 1) * 100
+                    self.log(f"P&L: ${pnl:.2f} ({pnl_percentage:+.2f}%)")
+                
+                # Update trading state (optimistic update)
+                self.trading_state.position_size -= quantity
+                self.trading_state.balance += quantity * float(order_response.price)
+                
+                if self.trading_state.position_size <= 0:
+                    self.trading_state.entry_price = None
+                    self.trading_state.stop_loss = None
+                    self.trading_state.take_profit = None
+                
+                # Record order
+                order = {
+                    "type": "SELL",
+                    "order_type": order_type,
+                    "quantity": quantity,
+                    "price": float(order_response.price),
+                    "timestamp": datetime.utcnow(),
+                    "status": order_response.status,
+                    "order_id": order_response.order_id
+                }
+                self.trading_state.orders.append(order)
+                
+            else:
+                self.log("Failed to place SELL order on exchange")
+                
+        except Exception as e:
+            self.log(f"Error placing real SELL order: {str(e)}")
+    
     def _evaluate_condition(self, condition: Condition) -> bool:
         """Evaluate a trading condition"""
         try:
