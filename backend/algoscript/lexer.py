@@ -13,6 +13,10 @@ class AlgoScriptLexer:
             (r'\d+\.?\d*%', TokenType.PERCENTAGE),
             (r'\d+\.?\d*', TokenType.NUMBER),
             
+            # Operators (must come before keywords)
+            (r'-', TokenType.UNKNOWN),  # Will handle arithmetic in parser
+            (r'\+', TokenType.UNKNOWN), # Will handle arithmetic in parser
+            
             # Keywords and identifiers (order matters!)
             (r'\bSYMBOL\b', TokenType.SYMBOL),
             (r'\bTIMEFRAME\b', TokenType.TIMEFRAME),
