@@ -9,13 +9,25 @@ const AlgoScriptEditor = () => {
   const [validationResult, setValidationResult] = useState(null);
   const [executionResult, setExecutionResult] = useState(null);
   const [marketData, setMarketData] = useState(null);
+  const [realMarketData, setRealMarketData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [initialBalance, setInitialBalance] = useState(10000);
+  const [useRealExchange, setUseRealExchange] = useState(false);
+  const [exchanges, setExchanges] = useState([]);
+  const [exchangeConfig, setExchangeConfig] = useState({
+    exchangeName: 'poloniex',
+    apiKey: '',
+    apiSecret: '',
+    setAsDefault: true
+  });
+  const [balances, setBalances] = useState([]);
+  const [showExchangeConfig, setShowExchangeConfig] = useState(false);
 
   // Load example code on component mount
   useEffect(() => {
     loadExampleCode();
     loadMarketData();
+    loadExchangeList();
   }, []);
 
   const loadExampleCode = async () => {
@@ -33,6 +45,63 @@ const AlgoScriptEditor = () => {
       setMarketData(response.data);
     } catch (error) {
       console.error('Error loading market data:', error);
+    }
+  };
+
+  const loadRealMarketData = async (symbol = 'BTC_USDT') => {
+    try {
+      const response = await axios.get(`${API}/exchange/market-data/${symbol}`);
+      setRealMarketData(response.data);
+    } catch (error) {
+      console.error('Error loading real market data:', error);
+    }
+  };
+
+  const loadExchangeList = async () => {
+    try {
+      const response = await axios.get(`${API}/exchange/list`);
+      setExchanges(response.data.exchanges);
+    } catch (error) {
+      console.error('Error loading exchange list:', error);
+    }
+  };
+
+  const loadBalances = async () => {
+    try {
+      const response = await axios.get(`${API}/exchange/balances`);
+      setBalances(response.data.balances);
+    } catch (error) {
+      console.error('Error loading balances:', error);
+    }
+  };
+
+  const configureExchange = async () => {
+    if (!exchangeConfig.apiKey || !exchangeConfig.apiSecret) {
+      alert('Please provide both API Key and API Secret');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const response = await axios.post(`${API}/exchange/configure`, {
+        exchange_name: exchangeConfig.exchangeName,
+        api_key: exchangeConfig.apiKey,
+        api_secret: exchangeConfig.apiSecret,
+        set_as_default: exchangeConfig.setAsDefault
+      });
+
+      if (response.data.success) {
+        alert('Exchange configured successfully!');
+        setExchangeConfig({ ...exchangeConfig, apiKey: '', apiSecret: '' });
+        setShowExchangeConfig(false);
+        await loadExchangeList();
+        await loadBalances();
+      }
+    } catch (error) {
+      console.error('Error configuring exchange:', error);
+      alert('Failed to configure exchange: ' + (error.response?.data?.detail || error.message));
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -60,12 +129,18 @@ const AlgoScriptEditor = () => {
       const response = await axios.post(`${API}/algoscript/execute`, {
         code: code,
         initial_balance: initialBalance,
-        events: ['NEW_CANDLE']
+        events: ['NEW_CANDLE'],
+        use_real_exchange: useRealExchange
       });
       setExecutionResult(response.data);
       
       // Refresh market data after execution
-      await loadMarketData();
+      if (useRealExchange) {
+        await loadRealMarketData();
+        await loadBalances();
+      } else {
+        await loadMarketData();
+      }
     } catch (error) {
       console.error('Error executing code:', error);
       setExecutionResult({
@@ -79,8 +154,12 @@ const AlgoScriptEditor = () => {
 
   const simulateNewCandle = async () => {
     try {
-      await axios.post(`${API}/algoscript/market-data/ETHUSD/simulate-candle`);
-      await loadMarketData();
+      if (useRealExchange) {
+        await loadRealMarketData();
+      } else {
+        await axios.post(`${API}/algoscript/market-data/ETHUSD/simulate-candle`);
+        await loadMarketData();
+      }
     } catch (error) {
       console.error('Error simulating candle:', error);
     }
@@ -96,51 +175,224 @@ const AlgoScriptEditor = () => {
         <p className="text-lg text-gray-600">
           Create and test algorithmic trading strategies with human-readable syntax
         </p>
+        <div className="flex items-center mt-4 space-x-4">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={useRealExchange}
+              onChange={(e) => setUseRealExchange(e.target.checked)}
+              className="mr-2"
+            />
+            <span className={`font-medium ${useRealExchange ? 'text-red-600' : 'text-green-600'}`}>
+              {useRealExchange ? '🔴 LIVE TRADING MODE' : '🟢 SIMULATION MODE'}
+            </span>
+          </label>
+          {useRealExchange && (
+            <button
+              onClick={() => setShowExchangeConfig(!showExchangeConfig)}
+              className="px-3 py-1 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 transition-colors"
+            >
+              Configure Exchange
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Market Data Panel */}
-      {marketData && (
+      {/* Exchange Configuration */}
+      {showExchangeConfig && (
+        <div className="mb-6 bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">Exchange Configuration</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Exchange
+              </label>
+              <select
+                value={exchangeConfig.exchangeName}
+                onChange={(e) => setExchangeConfig({...exchangeConfig, exchangeName: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="poloniex">Poloniex</option>
+                <option value="binance" disabled>Binance (Coming Soon)</option>
+                <option value="coinbase" disabled>Coinbase Pro (Coming Soon)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                API Key
+              </label>
+              <input
+                type="password"
+                value={exchangeConfig.apiKey}
+                onChange={(e) => setExchangeConfig({...exchangeConfig, apiKey: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter your API key"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                API Secret
+              </label>
+              <input
+                type="password"
+                value={exchangeConfig.apiSecret}
+                onChange={(e) => setExchangeConfig({...exchangeConfig, apiSecret: e.target.value})}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter your API secret"
+              />
+            </div>
+            <div className="flex items-center">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={exchangeConfig.setAsDefault}
+                  onChange={(e) => setExchangeConfig({...exchangeConfig, setAsDefault: e.target.checked})}
+                  className="mr-2"
+                />
+                <span className="text-sm text-gray-700">Set as default exchange</span>
+              </label>
+            </div>
+          </div>
+          <div className="mt-4">
+            <button
+              onClick={configureExchange}
+              disabled={isLoading || !exchangeConfig.apiKey || !exchangeConfig.apiSecret}
+              className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors disabled:opacity-50"
+            >
+              {isLoading ? 'Configuring...' : 'Configure Exchange'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Exchange Status */}
+      {useRealExchange && exchanges.length > 0 && (
         <div className="mb-6 bg-white rounded-lg shadow-md p-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">Market Data - {marketData.symbol}</h2>
+            <h2 className="text-xl font-semibold text-gray-800">Connected Exchanges</h2>
+            <button
+              onClick={loadBalances}
+              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+            >
+              Refresh Balances
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h3 className="font-medium text-gray-700 mb-2">Active Exchanges:</h3>
+              <ul className="text-sm text-gray-600">
+                {exchanges.map(exchange => (
+                  <li key={exchange} className="flex items-center">
+                    <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                    {exchange.charAt(0).toUpperCase() + exchange.slice(1)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-medium text-gray-700 mb-2">Account Balances:</h3>
+              <div className="text-sm text-gray-600 max-h-24 overflow-y-auto">
+                {balances.length > 0 ? (
+                  balances.map((balance, index) => (
+                    <div key={index} className="flex justify-between">
+                      <span>{balance.currency}:</span>
+                      <span>{balance.available.toFixed(4)}</span>
+                    </div>
+                  ))
+                ) : (
+                  <span>No balances loaded</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Market Data Panel */}
+      {(marketData || realMarketData) && (
+        <div className="mb-6 bg-white rounded-lg shadow-md p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-gray-800">
+              Market Data - {useRealExchange ? (realMarketData?.symbol || 'BTC_USDT') : (marketData?.symbol || 'ETHUSD')}
+              <span className="ml-2 text-sm font-normal text-gray-500">
+                ({useRealExchange ? 'Live' : 'Simulation'})
+              </span>
+            </h2>
             <button
               onClick={simulateNewCandle}
               className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
             >
-              Simulate New Candle
+              {useRealExchange ? 'Refresh Real Data' : 'Simulate New Candle'}
             </button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div className="text-center">
-              <div className="text-sm text-gray-500">Current Price</div>
-              <div className="text-lg font-bold text-green-600">
-                ${marketData.current_price.toFixed(2)}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-sm text-gray-500">EMA(50)</div>
-              <div className="text-lg font-bold text-blue-600">
-                ${marketData.ema_50.toFixed(2)}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-sm text-gray-500">RSI</div>
-              <div className="text-lg font-bold text-purple-600">
-                {marketData.rsi.toFixed(1)}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-sm text-gray-500">MACD</div>
-              <div className="text-lg font-bold text-orange-600">
-                {marketData.macd.macd.toFixed(2)}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-sm text-gray-500">Volume</div>
-              <div className="text-lg font-bold text-gray-600">
-                {marketData.volume.toFixed(0)}
-              </div>
-            </div>
+            {useRealExchange && realMarketData ? (
+              <>
+                <div className="text-center">
+                  <div className="text-sm text-gray-500">Current Price</div>
+                  <div className="text-lg font-bold text-green-600">
+                    ${parseFloat(realMarketData.price).toFixed(2)}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-gray-500">Bid</div>
+                  <div className="text-lg font-bold text-blue-600">
+                    ${parseFloat(realMarketData.bid).toFixed(2)}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-gray-500">Ask</div>
+                  <div className="text-lg font-bold text-red-600">
+                    ${parseFloat(realMarketData.ask).toFixed(2)}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-gray-500">24h Change</div>
+                  <div className={`text-lg font-bold ${parseFloat(realMarketData.change_24h) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {(parseFloat(realMarketData.change_24h) * 100).toFixed(2)}%
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-gray-500">Volume</div>
+                  <div className="text-lg font-bold text-gray-600">
+                    {parseFloat(realMarketData.volume).toFixed(0)}
+                  </div>
+                </div>
+              </>
+            ) : marketData ? (
+              <>
+                <div className="text-center">
+                  <div className="text-sm text-gray-500">Current Price</div>
+                  <div className="text-lg font-bold text-green-600">
+                    ${marketData.current_price.toFixed(2)}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-gray-500">EMA(50)</div>
+                  <div className="text-lg font-bold text-blue-600">
+                    ${marketData.ema_50.toFixed(2)}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-gray-500">RSI</div>
+                  <div className="text-lg font-bold text-purple-600">
+                    {marketData.rsi.toFixed(1)}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-gray-500">MACD</div>
+                  <div className="text-lg font-bold text-orange-600">
+                    {marketData.macd.macd.toFixed(2)}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-sm text-gray-500">Volume</div>
+                  <div className="text-lg font-bold text-gray-600">
+                    {marketData.volume.toFixed(0)}
+                  </div>
+                </div>
+              </>
+            ) : null}
           </div>
         </div>
       )}
@@ -186,10 +438,12 @@ const AlgoScriptEditor = () => {
               </button>
               <button
                 onClick={executeCode}
-                disabled={isLoading || !code.trim()}
-                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors disabled:opacity-50"
+                disabled={isLoading || !code.trim() || (useRealExchange && exchanges.length === 0)}
+                className={`px-4 py-2 text-white rounded transition-colors disabled:opacity-50 ${
+                  useRealExchange ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
+                }`}
               >
-                {isLoading ? 'Executing...' : 'Execute'}
+                {isLoading ? 'Executing...' : useRealExchange ? '⚠️ Execute LIVE' : 'Execute Simulation'}
               </button>
               <button
                 onClick={loadExampleCode}
@@ -198,6 +452,14 @@ const AlgoScriptEditor = () => {
                 Load Example
               </button>
             </div>
+            
+            {useRealExchange && exchanges.length === 0 && (
+              <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                <p className="text-sm text-yellow-700">
+                  ⚠️ Configure an exchange above to enable live trading
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -250,7 +512,9 @@ const AlgoScriptEditor = () => {
             {/* Execution Results */}
             {executionResult && (
               <div className="mb-6">
-                <h3 className="text-lg font-medium text-gray-800 mb-3">Execution</h3>
+                <h3 className="text-lg font-medium text-gray-800 mb-3">
+                  Execution {useRealExchange ? '(LIVE)' : '(Simulation)'}
+                </h3>
                 <div className={`p-3 rounded-md ${
                   executionResult.success 
                     ? 'bg-green-50 border border-green-200' 
@@ -271,24 +535,32 @@ const AlgoScriptEditor = () => {
 
                 {/* Trading State */}
                 {executionResult.trading_state && (
-                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                    <h4 className="font-medium text-blue-800 mb-2">Trading State</h4>
+                  <div className={`mt-4 p-3 rounded-md ${
+                    useRealExchange 
+                      ? 'bg-red-50 border border-red-200' 
+                      : 'bg-blue-50 border border-blue-200'
+                  }`}>
+                    <h4 className={`font-medium mb-2 ${
+                      useRealExchange ? 'text-red-800' : 'text-blue-800'
+                    }`}>
+                      Trading State {useRealExchange ? '(LIVE ACCOUNT)' : '(SIMULATION)'}
+                    </h4>
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div>
-                        <span className="text-blue-600">Balance:</span> 
+                        <span className={useRealExchange ? 'text-red-600' : 'text-blue-600'}>Balance:</span> 
                         <span className="font-medium ml-1">
                           ${executionResult.trading_state.balance.toFixed(2)}
                         </span>
                       </div>
                       <div>
-                        <span className="text-blue-600">Position:</span> 
+                        <span className={useRealExchange ? 'text-red-600' : 'text-blue-600'}>Position:</span> 
                         <span className="font-medium ml-1">
                           {executionResult.trading_state.position_size.toFixed(4)}
                         </span>
                       </div>
                       {executionResult.trading_state.entry_price && (
                         <div>
-                          <span className="text-blue-600">Entry Price:</span> 
+                          <span className={useRealExchange ? 'text-red-600' : 'text-blue-600'}>Entry Price:</span> 
                           <span className="font-medium ml-1">
                             ${executionResult.trading_state.entry_price.toFixed(2)}
                           </span>
@@ -384,6 +656,16 @@ const AlgoScriptEditor = () => {
               </ul>
             </div>
           </div>
+          
+          {useRealExchange && (
+            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+              <h3 className="font-medium text-yellow-800 mb-2">⚠️ Live Trading Warning</h3>
+              <p className="text-sm text-yellow-700">
+                You are in LIVE TRADING MODE. All trades will be executed on real exchanges with real money. 
+                Please ensure you understand the risks and test your strategies in simulation mode first.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
