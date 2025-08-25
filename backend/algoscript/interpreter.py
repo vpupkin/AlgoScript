@@ -142,11 +142,11 @@ class AlgoScriptInterpreter:
         """
         Return the example AlgoScript code for testing.
         """
-        return '''SYMBOL "ETHUSD" TIMEFRAME 4H
+        return '''SYMBOL "ETHUSD" TIMEFRAME "4H"
 
 ON NEW_CANDLE:
     IF PRICE CROSSES EMA(50) UPWARDS AND MACD_HISTOGRAM(DAILY) IS POSITIVE
-        BUY 50% OF BALANCE WITH LIMIT_ORDER AT PRICE - 0.5%
+        BUY 50% OF BALANCE WITH MARKET_ORDER
         SET STOP_LOSS AT 5% BELOW ENTRY_PRICE
         LOG "BUY SIGNAL: Golden Cross confirmed by MACD."
 
@@ -155,7 +155,7 @@ ON ORDER_FILLED:
     LOG "ORDER FILLED. Take-Profit set."
 
 ON PRICE_CHANGE:
-    IF PRICE IS LESS THAN ENTRY_PRICE - STOP_LOSS_PERCENTAGE
+    IF PRICE IS LESS_THAN ENTRY_PRICE
         SELL 100% OF POSITION WITH MARKET_ORDER
         LOG "STOP_LOSS triggered."
 
