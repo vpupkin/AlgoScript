@@ -433,7 +433,7 @@ class AlgoScriptExecutor:
         self.log(f"Remaining balance: ${self.trading_state.balance:.2f}")
     
     def _execute_sell_action(self, params: Dict[str, Any]):
-        """Execute SELL action"""
+        """Execute SELL action (simulation mode)"""
         if self.trading_state.position_size <= 0:
             self.log("No position to sell")
             return
