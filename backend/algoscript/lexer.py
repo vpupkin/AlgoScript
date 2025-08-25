@@ -4,20 +4,36 @@ from .models import Token, TokenType
 
 class AlgoScriptLexer:
     def __init__(self):
-        # Define token patterns
+        # Define token patterns - ORDER MATTERS!
         self.token_patterns = [
             # String literals (must come before keywords)
             (r'"([^"]*)"', TokenType.STRING),
             
-            # Numbers and percentages
+            # Complex phrases first
+            (r'\bSTOP_LOSS_PERCENTAGE\b', TokenType.UNKNOWN),  # This needs to be handled differently
+            (r'\bMACD_HISTOGRAM\b', TokenType.MACD_HISTOGRAM),
+            (r'\bNEW_CANDLE\b', TokenType.NEW_CANDLE),
+            (r'\bORDER_FILLED\b', TokenType.ORDER_FILLED),
+            (r'\bPRICE_CHANGE\b', TokenType.PRICE_CHANGE),
+            (r'\bMARKET_ORDER\b', TokenType.MARKET_ORDER),
+            (r'\bLIMIT_ORDER\b', TokenType.LIMIT_ORDER),
+            (r'\bSTOP_LOSS\b', TokenType.STOP_LOSS),
+            (r'\bTAKE_PROFIT\b', TokenType.TAKE_PROFIT),
+            (r'\bENTRY_PRICE\b', TokenType.ENTRY_PRICE),
+            (r'\bLESS\s+THAN\b', TokenType.LESS_THAN),
+            (r'\bGREATER\s+THAN\b', TokenType.GREATER_THAN),
+            
+            # Numbers and percentages (before keywords)
             (r'\d+\.?\d*%', TokenType.PERCENTAGE),
             (r'\d+\.?\d*', TokenType.NUMBER),
             
-            # Operators (must come before keywords)
-            (r'-', TokenType.UNKNOWN),  # Will handle arithmetic in parser
-            (r'\+', TokenType.UNKNOWN), # Will handle arithmetic in parser
+            # Arithmetic operators
+            (r'-', TokenType.UNKNOWN),  # Dash - handle in parser context
+            (r'\+', TokenType.UNKNOWN), # Plus - handle in parser context
+            (r'\*', TokenType.UNKNOWN), # Multiply - handle in parser context
+            (r'/', TokenType.UNKNOWN),  # Divide - handle in parser context
             
-            # Keywords and identifiers (order matters!)
+            # Keywords and identifiers
             (r'\bSYMBOL\b', TokenType.SYMBOL),
             (r'\bTIMEFRAME\b', TokenType.TIMEFRAME),
             (r'\bON\b', TokenType.ON),
@@ -29,29 +45,18 @@ class AlgoScriptLexer:
             (r'\bSET\b', TokenType.SET),
             (r'\bLOG\b', TokenType.LOG),
             
-            # Events
-            (r'\bNEW_CANDLE\b', TokenType.NEW_CANDLE),
-            (r'\bORDER_FILLED\b', TokenType.ORDER_FILLED),
-            (r'\bPRICE_CHANGE\b', TokenType.PRICE_CHANGE),
-            
             # Indicators
             (r'\bPRICE\b', TokenType.PRICE),
             (r'\bEMA\b', TokenType.EMA),
             (r'\bRSI\b', TokenType.RSI),
-            (r'\bMACD_HISTOGRAM\b', TokenType.MACD_HISTOGRAM),
             (r'\bMACD\b', TokenType.MACD),
             (r'\bVOLUME\b', TokenType.VOLUME),
             
             # Actions
             (r'\bBUY\b', TokenType.BUY),
             (r'\bSELL\b', TokenType.SELL),
-            (r'\bMARKET_ORDER\b', TokenType.MARKET_ORDER),
-            (r'\bLIMIT_ORDER\b', TokenType.LIMIT_ORDER),
             
             # Position Management
-            (r'\bSTOP_LOSS\b', TokenType.STOP_LOSS),
-            (r'\bTAKE_PROFIT\b', TokenType.TAKE_PROFIT),
-            (r'\bENTRY_PRICE\b', TokenType.ENTRY_PRICE),
             (r'\bBALANCE\b', TokenType.BALANCE),
             (r'\bPOSITION\b', TokenType.POSITION),
             
@@ -62,8 +67,6 @@ class AlgoScriptLexer:
             (r'\bIS\b', TokenType.IS),
             (r'\bPOSITIVE\b', TokenType.POSITIVE),
             (r'\bNEGATIVE\b', TokenType.NEGATIVE),
-            (r'\bLESS\s+THAN\b', TokenType.LESS_THAN),
-            (r'\bGREATER\s+THAN\b', TokenType.GREATER_THAN),
             (r'\bAT\b', TokenType.AT),
             (r'\bOF\b', TokenType.OF),
             (r'\bWITH\b', TokenType.WITH),
@@ -89,6 +92,9 @@ class AlgoScriptLexer:
             
             # Skip comments
             (r'#.*', None),
+            
+            # Identifiers and unknown (catch remaining text)
+            (r'[A-Za-z_][A-Za-z0-9_]*', TokenType.UNKNOWN),  # Will be processed contextually
         ]
         
         # Compile patterns
