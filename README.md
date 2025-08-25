@@ -1,9 +1,10 @@
-# AlgoScript Trading Bot Platform
+# AlgoScript Trading Bot Platform with Real Exchange Integration
 
-A domain-specific language (DSL) for creating algorithmic trading bots with human-readable syntax. Write trading strategies in plain English and execute them with real-time market simulation.
+A comprehensive domain-specific language (DSL) for creating algorithmic trading bots with human-readable syntax. Write trading strategies in plain English and execute them with real-time market simulation **OR LIVE TRADING** on real cryptocurrency exchanges.
 
 ## 🚀 Features
 
+### Core AlgoScript Features
 - **Human-Readable Syntax**: Write trading strategies in natural English
 - **Event-Driven Architecture**: Respond to market events (NEW_CANDLE, ORDER_FILLED, PRICE_CHANGE)
 - **Built-in Trading Concepts**: Native support for indicators (EMA, RSI, MACD), orders, and risk management
@@ -11,11 +12,22 @@ A domain-specific language (DSL) for creating algorithmic trading bots with huma
 - **Web-based Editor**: Interactive code editor with validation and execution
 - **Comprehensive Logging**: Detailed execution logs and trading state tracking
 
+### 🔴 NEW: Real Exchange Integration
+- **Live Trading Support**: Execute strategies on real cryptocurrency exchanges
+- **Multi-Exchange Architecture**: Extensible framework supporting multiple exchanges
+- **Poloniex Integration**: Full Poloniex API integration for live trading
+- **Real Market Data**: Live price feeds and market data from exchanges
+- **Account Management**: Real account balance tracking and position management
+- **Order Execution**: Place real market and limit orders
+- **Risk Management**: Built-in safeguards for live trading
+- **Dual Mode Operation**: Switch between simulation and live trading instantly
+
 ## 📋 Prerequisites
 
 - Python 3.8+
 - Node.js 16+
 - MongoDB (configured via environment variables)
+- **For Live Trading**: Poloniex API credentials (or other supported exchange)
 
 ## 🛠️ Installation & Setup
 
@@ -87,6 +99,51 @@ yarn start
 - **Backend API**: http://localhost:8001
 - **API Documentation**: http://localhost:8001/docs
 
+## 🔴 Live Trading Setup (NEW)
+
+### 1. Configure Exchange Credentials
+
+#### Option A: Via Web Interface
+1. Open the AlgoScript platform at http://localhost:3000
+2. Toggle "LIVE TRADING MODE" (red switch)
+3. Click "Configure Exchange"
+4. Enter your Poloniex API credentials:
+   - **API Key**: Your Poloniex API key
+   - **API Secret**: Your Poloniex API secret
+5. Click "Configure Exchange"
+
+#### Option B: Via API
+```bash
+curl -X POST "http://localhost:8001/api/exchange/configure" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "exchange_name": "poloniex",
+    "api_key": "your_api_key",
+    "api_secret": "your_api_secret",
+    "set_as_default": true
+  }'
+```
+
+### 2. Get Poloniex API Credentials
+
+1. Sign up/Login to [Poloniex](https://poloniex.com)
+2. Go to Account Settings → API Keys
+3. Create new API key with trading permissions
+4. **Important**: Start with small amounts for testing
+
+### 3. Verify Exchange Connection
+
+```bash
+# Check connected exchanges
+curl http://localhost:8001/api/exchange/list
+
+# Get real market data
+curl http://localhost:8001/api/exchange/market-data/BTC_USDT
+
+# Check account balances
+curl http://localhost:8001/api/exchange/balances
+```
+
 ## 📖 AlgoScript Language Guide
 
 ### Basic Structure
@@ -99,18 +156,18 @@ ON NEW_CANDLE:
 END
 ```
 
-### Complete Example
+### Complete Live Trading Example
 ```algoscript
-SYMBOL "ETHUSD" TIMEFRAME "4H"
+SYMBOL "BTC_USDT" TIMEFRAME "4H"
 
 ON NEW_CANDLE:
     IF PRICE CROSSES EMA(50) UPWARDS AND MACD_HISTOGRAM(DAILY) IS POSITIVE
-        BUY 50% OF BALANCE WITH MARKET_ORDER
-        SET STOP_LOSS AT 5% BELOW ENTRY_PRICE
+        BUY 10% OF BALANCE WITH MARKET_ORDER
+        SET STOP_LOSS AT 3% BELOW ENTRY_PRICE
         LOG "BUY SIGNAL: Golden Cross confirmed by MACD."
 
 ON ORDER_FILLED:
-    SET TAKE_PROFIT AT 10% ABOVE ENTRY_PRICE
+    SET TAKE_PROFIT AT 8% ABOVE ENTRY_PRICE
     LOG "ORDER FILLED. Take-Profit set."
 
 ON PRICE_CHANGE:
@@ -152,38 +209,59 @@ END
 
 ## 🔧 API Endpoints
 
-### Core Endpoints
+### Core AlgoScript Endpoints
 - `GET /api/` - API status
 - `GET /api/algoscript/example` - Get example AlgoScript code
 - `POST /api/algoscript/validate` - Validate AlgoScript syntax
-- `POST /api/algoscript/execute` - Execute AlgoScript strategy
+- `POST /api/algoscript/execute` - Execute AlgoScript strategy (simulation or live)
 - `POST /api/algoscript/execute-multi` - Execute with multiple events
 
-### Market Data
-- `GET /api/algoscript/market-data/{symbol}` - Get current market data
+### Mock Market Data (Simulation)
+- `GET /api/algoscript/market-data/{symbol}` - Get simulated market data
 - `POST /api/algoscript/market-data/{symbol}/simulate-candle` - Simulate new candle
+
+### 🔴 NEW: Real Exchange Integration Endpoints
+
+#### Exchange Management
+- `POST /api/exchange/configure` - Configure real exchange connection
+- `GET /api/exchange/list` - List configured exchanges and their status
+
+#### Real Market Data
+- `GET /api/exchange/market-data/{symbol}` - Get real market data from exchange
+- `GET /api/exchange/market-data/{symbol}/best-price` - Get best price across exchanges
+
+#### Live Trading
+- `POST /api/exchange/order/market` - Place market order on real exchange
+- `POST /api/exchange/order/limit` - Place limit order on real exchange
+- `DELETE /api/exchange/order/{order_id}` - Cancel order
+- `GET /api/exchange/balances` - Get real account balances
 
 ## 🧪 Testing
 
-### Backend Testing
+### Simulation Mode Testing
 ```bash
 cd backend
 python -c "from algoscript.interpreter import get_interpreter; print('✓ AlgoScript interpreter ready')"
+```
+
+### Live Trading Testing (with API credentials)
+```bash
+# Test exchange connection
+curl -X POST "http://localhost:8001/api/exchange/configure" \
+  -H "Content-Type: application/json" \
+  -d '{"exchange_name": "poloniex", "api_key": "YOUR_KEY", "api_secret": "YOUR_SECRET"}'
+
+# Test real market data
+curl "http://localhost:8001/api/exchange/market-data/BTC_USDT"
+
+# Test account balances
+curl "http://localhost:8001/api/exchange/balances"
 ```
 
 ### Frontend Testing
 ```bash
 cd frontend
 yarn test
-```
-
-### API Testing
-```bash
-# Test API endpoints
-curl http://localhost:8001/api/algoscript/example
-curl -X POST http://localhost:8001/api/algoscript/validate \
-  -H "Content-Type: application/json" \
-  -d '{"code": "SYMBOL \"ETHUSD\" TIMEFRAME \"4H\"\n\nON NEW_CANDLE:\n    LOG \"Hello World\"\n\nEND"}'
 ```
 
 ## 📁 Project Structure
@@ -194,16 +272,20 @@ algoscript-trading-platform/
 │   ├── algoscript/
 │   │   ├── lexer.py          # AlgoScript tokenizer
 │   │   ├── parser.py         # AST parser
-│   │   ├── executor.py       # Strategy executor
+│   │   ├── executor.py       # Strategy executor (sim + live)
 │   │   ├── interpreter.py    # Main interpreter
 │   │   ├── models.py         # Data models
 │   │   └── market_data.py    # Market simulation
-│   ├── server.py             # FastAPI server
+│   ├── exchange/             # 🔴 NEW: Real exchange integration
+│   │   ├── base_exchange.py  # Abstract exchange interface
+│   │   ├── poloniex_exchange.py  # Poloniex implementation
+│   │   └── exchange_manager.py   # Multi-exchange manager
+│   ├── server.py             # FastAPI server with exchange endpoints
 │   └── requirements.txt      # Python dependencies
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   └── AlgoScriptEditor.js  # Main UI component
+│   │   │   └── AlgoScriptEditor.js  # Enhanced UI with live trading
 │   │   └── App.js            # React app
 │   └── package.json          # Node.js dependencies
 └── README.md                 # This file
@@ -231,10 +313,22 @@ algoscript-trading-platform/
    sudo supervisorctl restart frontend
    ```
 
-3. **AlgoScript validation errors**
+3. **Exchange connection failed**
+   - Verify API credentials are correct
+   - Check Poloniex API key permissions (trading enabled)
+   - Ensure API key is not restricted by IP
+   - Check account has sufficient balance for trading
+
+4. **AlgoScript validation errors**
    - Check syntax against the language guide above
    - Use the web interface validation feature
    - Check execution logs for detailed error messages
+
+5. **Live trading issues**
+   - Start with very small amounts for testing
+   - Use simulation mode to test strategies first
+   - Check exchange API status and limits
+   - Verify account balances and trading permissions
 
 ### Service Management
 ```bash
@@ -247,54 +341,84 @@ sudo supervisorctl tail -f frontend
 
 # Restart specific service
 sudo supervisorctl restart backend
-sudo supervisurctl restart frontend
+sudo supervisorctl restart frontend
 ```
 
 ## 🎯 Usage Examples
 
-### 1. Simple Logging Strategy
+### 1. Simulation Mode (Safe Testing)
 ```algoscript
-SYMBOL "BTCUSD" TIMEFRAME "1H"
-
-ON NEW_CANDLE:
-    LOG "New Bitcoin candle at price: " 
-
-END
-```
-
-### 2. RSI-based Strategy
-```algoscript
-SYMBOL "ETHUSD" TIMEFRAME "4H"
+SYMBOL "ETHUSD" TIMEFRAME "1H"
 
 ON NEW_CANDLE:
     IF RSI(14) IS LESS_THAN 30
         BUY 25% OF BALANCE WITH MARKET_ORDER
-        LOG "RSI oversold, buying ETH"
+        LOG "RSI oversold, buying ETH (SIMULATION)"
 
 END
 ```
 
-### 3. Moving Average Crossover
+### 2. 🔴 Live Trading Mode (Real Money)
 ```algoscript
-SYMBOL "ETHUSD" TIMEFRAME "4H"
+SYMBOL "BTC_USDT" TIMEFRAME "4H"
 
 ON NEW_CANDLE:
     IF PRICE CROSSES EMA(20) UPWARDS
-        BUY 50% OF BALANCE WITH MARKET_ORDER
-        SET STOP_LOSS AT 3% BELOW ENTRY_PRICE
-        SET TAKE_PROFIT AT 6% ABOVE ENTRY_PRICE
-        LOG "Golden cross detected"
+        BUY 5% OF BALANCE WITH MARKET_ORDER
+        SET STOP_LOSS AT 2% BELOW ENTRY_PRICE
+        SET TAKE_PROFIT AT 4% ABOVE ENTRY_PRICE
+        LOG "Golden cross detected - LIVE TRADE EXECUTED"
 
 END
 ```
 
-## 📈 Contributing
+### 3. Advanced Multi-Condition Strategy
+```algoscript
+SYMBOL "BTC_USDT" TIMEFRAME "4H"
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Submit a pull request
+ON NEW_CANDLE:
+    IF RSI(14) IS LESS_THAN 35 AND EMA(50) IS GREATER_THAN EMA(200)
+        BUY 10% OF BALANCE WITH LIMIT_ORDER
+        LOG "Bullish momentum with oversold RSI"
+
+ON ORDER_FILLED:
+    SET STOP_LOSS AT 3% BELOW ENTRY_PRICE
+    SET TAKE_PROFIT AT 6% ABOVE ENTRY_PRICE
+
+END
+```
+
+## ⚠️ Live Trading Warnings
+
+### 🔴 IMPORTANT RISK DISCLAIMERS
+
+1. **Start Small**: Always test with minimal amounts first
+2. **Simulation First**: Thoroughly test strategies in simulation mode
+3. **API Security**: Keep API keys secure, use read-only keys for testing
+4. **Market Risk**: Cryptocurrency trading involves significant risk
+5. **No Guarantees**: Past performance doesn't guarantee future results
+6. **Monitoring**: Always monitor live trading strategies actively
+
+### Safety Features
+
+- **Dual Mode**: Clear visual distinction between simulation and live trading
+- **Exchange Validation**: API credential verification before trading
+- **Balance Checks**: Automatic insufficient balance protection
+- **Error Handling**: Comprehensive error handling and logging
+- **Risk Warnings**: Clear warnings when enabling live trading mode
+
+## 📈 Supported Exchanges
+
+### Currently Supported
+- ✅ **Poloniex** - Full integration with live trading
+
+### Coming Soon
+- 🔄 **Binance** - In development
+- 🔄 **Coinbase Pro** - In development
+- 🔄 **Kraken** - Planned
+- 🔄 **Bitfinex** - Planned
+
+The platform's modular architecture makes adding new exchanges straightforward.
 
 ## 📄 License
 
@@ -307,7 +431,10 @@ For issues and questions:
 2. Review the AlgoScript language guide
 3. Test with the provided examples
 4. Check service logs for detailed error information
+5. Start with simulation mode before attempting live trading
 
 ---
 
 **Happy Trading with AlgoScript! 🚀📈**
+
+*Remember: With great trading power comes great responsibility. Always trade responsibly and never risk more than you can afford to lose.*
