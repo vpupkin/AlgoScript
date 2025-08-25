@@ -1,6 +1,6 @@
 <file>
       <absolute_file_name>/app/backend/algoscript/models.py</absolute_file_name>
-      <content">from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
 from enum import Enum
